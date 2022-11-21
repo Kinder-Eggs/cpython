@@ -958,16 +958,19 @@ class date:
     # Additional constructors
 
     @classmethod
-    def fromtimestamp(cls, t):
+    def fromtimestamp(cls, t, tz=None):
         "Construct a date from a POSIX timestamp (like time.time())."
+        if tz is not None:
+            t -= _time.timezone
+            t += tz.utcoffset(datetime.now()).total_seconds()
         y, m, d, hh, mm, ss, weekday, jday, dst = _time.localtime(t)
         return cls(y, m, d)
 
     @classmethod
-    def today(cls):
+    def today(cls, tz=None):
         "Construct a date from time.time()."
         t = _time.time()
-        return cls.fromtimestamp(t)
+        return cls.fromtimestamp(t, tz)
 
     @classmethod
     def fromordinal(cls, n):
