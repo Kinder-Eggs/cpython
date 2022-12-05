@@ -2933,11 +2933,10 @@ date_new(PyTypeObject *type, PyObject *args, PyObject *kw)
 }
 
 static PyObject *
-date_fromtimestamp(PyObject *cls, PyObject *obj)
+_date_fromtimestamptz(PyObject *cls, PyObject *obj, PyObject *tz)
 {
     struct tm tm;
     time_t t;
-
     if (_PyTime_ObjectToTime_t(obj, &t, _PyTime_ROUND_FLOOR) == -1)
         return NULL;
 
@@ -2950,13 +2949,19 @@ date_fromtimestamp(PyObject *cls, PyObject *obj)
                                 cls);
 }
 
+static PyObject *
+date_fromtimestamp(PyObject *cls, PyObject *obj)
+{
+    return _date_fromtimestamptz(cls, obj, Py_None);
+}
+
 /* Return new date from current time.
  * We say this is equivalent to fromtimestamp(time.time()), and the
  * only way to be sure of that is to *call* time.time().  That's not
  * generally the same as calling C's time.
  */
 static PyObject *
-date_today(PyObject *cls, PyObject *dummy)
+date_today(PyObject *cls, PyObject *dummy, PyObject *tz)
 {
     PyObject *time;
     PyObject *result;
@@ -2970,7 +2975,7 @@ date_today(PyObject *cls, PyObject *dummy)
      * time.time() delivers; if someone were gonzo about optimization,
      * date.today() could get away with plain C time().
      */
-    result = PyObject_CallMethodOneArg(cls, &_Py_ID(fromtimestamp), time);
+    result = _date_fromtimestamptz(cls, time, tz);
     Py_DECREF(time);
     return result;
 }
