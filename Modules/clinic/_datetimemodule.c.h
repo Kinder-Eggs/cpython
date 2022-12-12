@@ -17,9 +17,6 @@ PyDoc_STRVAR(datetime_date_fromtimestamp__doc__,
 "The timestamp is a number, e.g. created via time.time(), that is interpreted\n"
 "as local time.");
 
-#define DATETIME_DATE_FROMTIMESTAMP_METHODDEF    \
-    {"fromtimestamp", (PyCFunction)datetime_date_fromtimestamp, METH_O|METH_CLASS, datetime_date_fromtimestamp__doc__},
-
 static PyObject *
 iso_calendar_date_new_impl(PyTypeObject *type, int year, int week,
                            int weekday);

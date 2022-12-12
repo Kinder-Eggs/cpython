@@ -2934,17 +2934,19 @@ date_new(PyTypeObject *type, PyObject *args, PyObject *kw)
 
 ///TODO: Set as default function, remove date_fromtimestamp
 static PyObject *
-_date_fromtimestamptz(PyObject *cls, PyObject *obj, PyObject *tz)
+_date_fromtimestamptz(PyObject *cls, PyObject *args)
 {
+    PyObject *obj, *tz;
+    PyArg_UnpackTuple(args, "fromtimestamp", 1, 2, &obj, &tz);
+    if(Py_REFCNT(tz) != 4) {
+        tz = Py_None;
+    }
+    
     struct tm tm;
     time_t t;
     if (_PyTime_ObjectToTime_t(obj, &t, _PyTime_ROUND_FLOOR) == -1)
         return NULL;
 
-    
-    //datetime_datetime_now_impl
-
-    //PyZoneInfo_ZoneInfo zi = (PyZoneInfo_ZoneInfo) tz;
     if(tz != Py_None) {
         if (_PyTime_gmtime(t, &tm) != 0)
             return NULL;
@@ -2968,8 +2970,6 @@ _date_fromtimestamptz(PyObject *cls, PyObject *obj, PyObject *tz)
         PyObject *res = PyObject_CallMethodOneArg(tz, &_Py_ID(fromutc), dt);
         
         return new_date_subclass_ex(GET_YEAR(res), GET_MONTH(res),GET_DAY(res), cls);
-        //PyObject_CallMethod(tz, "utcoffset", , );
-        //PyObject_CallMethodNoArgs(tz, &_Py_ID(fromutc));
     }
 
     if (_PyTime_localtime(t, &tm) != 0)
@@ -2983,8 +2983,11 @@ _date_fromtimestamptz(PyObject *cls, PyObject *obj, PyObject *tz)
 
 static PyObject *
 date_fromtimestamp(PyObject *cls, PyObject *obj)
-{
-    return _date_fromtimestamptz(cls, obj, Py_None);
+{    
+    PyObject *tuple = PyTuple_New(1);
+    PyTuple_SetItem(tuple, 0, obj);
+
+    return _date_fromtimestamptz(cls, tuple);
 }
 
 /* Return new date from current time.
@@ -3011,33 +3014,17 @@ date_today(PyObject *cls, PyObject *args)
     PyObject *tz;
     PyArg_UnpackTuple(args, "tz", 0, 1, &tz);
     if(Py_REFCNT(tz) == 4) {
-        result = _date_fromtimestamptz(cls, time, tz);
+        PyObject *tuple = PyTuple_New(2);
+        PyTuple_SetItem(tuple, 0, time);
+        PyTuple_SetItem(tuple, 1, tz);
+
+        result = _date_fromtimestamptz(cls, tuple);
     } else {
         result = date_fromtimestamp(cls, time);
     }
 
     Py_DECREF(time);
     return result;
-}
-
-/*[clinic input]
-@classmethod
-datetime.date.fromtimestamp
-
-    timestamp: object
-    /
-
-Create a date from a POSIX timestamp.
-
-The timestamp is a number, e.g. created via time.time(), that is interpreted
-as local time.
-[clinic start generated code]*/
-
-static PyObject *
-datetime_date_fromtimestamp(PyTypeObject *type, PyObject *timestamp)
-/*[clinic end generated code: output=fd045fda58168869 input=eabb3fe7f40491fe]*/
-{
-    return date_fromtimestamp((PyObject *) type, timestamp);
 }
 
 /* bpo-36025: This is a wrapper for API compatibility with the public C API,
@@ -3581,10 +3568,9 @@ date_reduce(PyDateTime_Date *self, PyObject *arg)
 static PyMethodDef date_methods[] = {
 
     /* Class methods: */
-    DATETIME_DATE_FROMTIMESTAMP_METHODDEF
-    /*{"fromtimestamp", (PyCFunction)_date_fromtimestamptz, METH_VARARGS | 
+    {"fromtimestamp", (PyCFunction)_date_fromtimestamptz, METH_VARARGS | 
                                                                 METH_CLASS, 
-    datetime_date_fromtimestamp__doc__},*/
+    datetime_date_fromtimestamp__doc__},
 
     {"fromordinal", (PyCFunction)date_fromordinal,      METH_VARARGS |
                                                     METH_CLASS,
