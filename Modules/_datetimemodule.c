@@ -2932,6 +2932,7 @@ date_new(PyTypeObject *type, PyObject *args, PyObject *kw)
     return self;
 }
 
+///TODO: Set as default function, remove date_fromtimestamp
 static PyObject *
 _date_fromtimestamptz(PyObject *cls, PyObject *obj, PyObject *tz)
 {
@@ -2939,6 +2940,37 @@ _date_fromtimestamptz(PyObject *cls, PyObject *obj, PyObject *tz)
     time_t t;
     if (_PyTime_ObjectToTime_t(obj, &t, _PyTime_ROUND_FLOOR) == -1)
         return NULL;
+
+    
+    //datetime_datetime_now_impl
+
+    //PyZoneInfo_ZoneInfo zi = (PyZoneInfo_ZoneInfo) tz;
+    if(tz != Py_None) {
+        if (_PyTime_gmtime(t, &tm) != 0)
+            return NULL;
+
+        _PyTime_t ts = _PyTime_GetSystemClock();
+        time_t secs;
+        int us;
+
+        if (_PyTime_AsTimevalTime_t(ts, &secs, &us, _PyTime_ROUND_FLOOR) < 0)
+            return NULL;
+        assert(0 <= us && us <= 999999);
+
+        int year, month, day, hour, minute;
+
+        year = tm.tm_year + 1900;
+        month = tm.tm_mon + 1;
+        day = tm.tm_mday;
+        hour = tm.tm_hour;
+        minute = tm.tm_min;
+        PyObject* dt = new_datetime(year, month, day, hour, minute, 0, us, tz, 0);
+        PyObject *res = PyObject_CallMethodOneArg(tz, &_Py_ID(fromutc), dt);
+        
+        return new_date_subclass_ex(GET_YEAR(res), GET_MONTH(res),GET_DAY(res), cls);
+        //PyObject_CallMethod(tz, "utcoffset", , );
+        //PyObject_CallMethodNoArgs(tz, &_Py_ID(fromutc));
+    }
 
     if (_PyTime_localtime(t, &tm) != 0)
         return NULL;
@@ -2961,7 +2993,7 @@ date_fromtimestamp(PyObject *cls, PyObject *obj)
  * generally the same as calling C's time.
  */
 static PyObject *
-date_today(PyObject *cls, PyObject *dummy, PyObject *tz)
+date_today(PyObject *cls, PyObject *args)
 {
     PyObject *time;
     PyObject *result;
@@ -2975,7 +3007,15 @@ date_today(PyObject *cls, PyObject *dummy, PyObject *tz)
      * time.time() delivers; if someone were gonzo about optimization,
      * date.today() could get away with plain C time().
      */
-    result = _date_fromtimestamptz(cls, time, tz);
+
+    PyObject *tz;
+    PyArg_UnpackTuple(args, "tz", 0, 1, &tz);
+    if(Py_REFCNT(tz) == 4) {
+        result = _date_fromtimestamptz(cls, time, tz);
+    } else {
+        result = date_fromtimestamp(cls, time);
+    }
+
     Py_DECREF(time);
     return result;
 }
@@ -3542,6 +3582,9 @@ static PyMethodDef date_methods[] = {
 
     /* Class methods: */
     DATETIME_DATE_FROMTIMESTAMP_METHODDEF
+    /*{"fromtimestamp", (PyCFunction)_date_fromtimestamptz, METH_VARARGS | 
+                                                                METH_CLASS, 
+    datetime_date_fromtimestamp__doc__},*/
 
     {"fromordinal", (PyCFunction)date_fromordinal,      METH_VARARGS |
                                                     METH_CLASS,
@@ -3558,7 +3601,7 @@ static PyMethodDef date_methods[] = {
                 "number and weekday.\n\n"
                 "This is the inverse of the date.isocalendar() function")},
 
-    {"today",         (PyCFunction)date_today,   METH_NOARGS | METH_CLASS,
+    {"today",         (PyCFunction)date_today,   METH_VARARGS | METH_CLASS,
      PyDoc_STR("Current date or datetime:  same as "
                "self.__class__.fromtimestamp(time.time()).")},
 
