@@ -961,8 +961,9 @@ class date:
     def fromtimestamp(cls, t, tz=None):
         "Construct a date from a POSIX timestamp (like time.time())."
         if tz is not None:
-            t -= _time.timezone
+            t += _time.timezone  # _time.timzone has inverted signal compared to utcoffset()
             t += tz.utcoffset(datetime.now()).total_seconds()
+            
         y, m, d, hh, mm, ss, weekday, jday, dst = _time.localtime(t)
         return cls(y, m, d)
 
